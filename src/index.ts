@@ -204,5 +204,11 @@ async function handleEvent(event: any) {
   console.log("Ignored event:", event.event);
 }
 
+if (process.env.VERCEL !== "1") {
+    const port = process.env.PORT || 3001;
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+}
 // Quan trọng: export Express app, không gọi app.listen().
-module.exports = app;
+export default app;
