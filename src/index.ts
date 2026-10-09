@@ -1,5 +1,4 @@
 import express from "express";
-import crypto from "crypto";
 import axios from "axios";
 
 const app = express();
@@ -7,7 +6,6 @@ const app = express();
 const {
   CLICKUP_API_TOKEN,
   CLICKUP_USER_ID,
-  CLICKUP_WEBHOOK_SECRET,
   ZALO_BOT_TOKEN,
   ZALO_CHAT_ID,
 } = process.env;
@@ -25,7 +23,7 @@ app.get("/webhooks/clickup", (_req, res) => {
 });
 
 // Không đặt express.json() trước route này.
-// Cần raw body để xác minh X-Signature chính xác.
+// Đã tắt xác minh X-Signature.
 app.post(
   "/webhooks/clickup",
   express.raw({ type: "application/json" }),
@@ -34,7 +32,6 @@ app.post(
       if (
         !CLICKUP_API_TOKEN ||
         !CLICKUP_USER_ID ||
-        !CLICKUP_WEBHOOK_SECRET ||
         !ZALO_BOT_TOKEN ||
         !ZALO_CHAT_ID
       ) {
@@ -48,33 +45,6 @@ app.post(
         return res.status(400).json({
           ok: false,
           error: "Expected raw JSON body",
-        });
-      }
-
-      const signature = req.get("X-Signature");
-
-      if (!signature || !/^[a-f0-9]{64}$/i.test(signature)) {
-        return res.status(401).json({
-          ok: false,
-          error: "Missing or invalid signature",
-        });
-      }
-
-      const expected = crypto
-        .createHmac("sha256", CLICKUP_WEBHOOK_SECRET)
-        .update(req.body)
-        .digest("hex");
-
-      const receivedBuffer = Buffer.from(signature, "hex");
-      const expectedBuffer = Buffer.from(expected, "hex");
-
-      if (
-        receivedBuffer.length !== expectedBuffer.length ||
-        !crypto.timingSafeEqual(receivedBuffer, expectedBuffer)
-      ) {
-        return res.status(401).json({
-          ok: false,
-          error: "Signature verification failed",
         });
       }
 
