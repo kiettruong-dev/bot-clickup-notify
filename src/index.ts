@@ -3,12 +3,8 @@ import axios from "axios";
 
 const app = express();
 
-const {
-  CLICKUP_API_TOKEN,
-  CLICKUP_USER_ID,
-  ZALO_BOT_TOKEN,
-  ZALO_CHAT_ID,
-} = process.env;
+const { CLICKUP_API_TOKEN, CLICKUP_USER_ID, ZALO_BOT_TOKEN, ZALO_CHAT_ID } =
+  process.env;
 
 // ZALO_CHAT_ID có thể chứa nhiều ID, ngăn cách bằng dấu phẩy.
 const ZALO_CHAT_IDS = (ZALO_CHAT_ID || "")
@@ -62,17 +58,14 @@ app.post(
 
       return res.status(200).json({ ok: true });
     } catch (error: any) {
-      console.error(
-        "Webhook error:",
-        error.response?.data || error.message
-      );
+      console.error("Webhook error:", error.response?.data || error.message);
 
       return res.status(500).json({
         ok: false,
         error: "Webhook processing failed",
       });
     }
-  }
+  },
 );
 
 async function getTask(taskId: any) {
@@ -81,7 +74,7 @@ async function getTask(taskId: any) {
     {
       headers: { Authorization: CLICKUP_API_TOKEN },
       timeout: 8000,
-    }
+    },
   );
 
   return response.data;
@@ -94,27 +87,30 @@ async function sendZaloTo(chatId: string, text: string) {
       chat_id: chatId,
       text: text.slice(0, 3500),
     },
-    { timeout: 8000 }
+    { timeout: 8000 },
   );
 
   if (response.data?.ok === false) {
     throw new Error(
-      `Zalo rejected message for ${chatId}: ${JSON.stringify(response.data)}`
+      `Zalo rejected message for ${chatId}: ${JSON.stringify(response.data)}`,
     );
   }
 }
 
 async function sendZalo(text: string) {
   const results = await Promise.allSettled(
-    ZALO_CHAT_IDS.map((chatId) => sendZaloTo(chatId, text))
+    ZALO_CHAT_IDS.map((chatId) => sendZaloTo(chatId, text)),
   );
 
   const failed = results.filter(
-    (r): r is PromiseRejectedResult => r.status === "rejected"
+    (r): r is PromiseRejectedResult => r.status === "rejected",
   );
 
   failed.forEach((r) =>
-    console.error("Zalo send error:", r.reason?.response?.data || r.reason?.message)
+    console.error(
+      "Zalo send error:",
+      r.reason?.response?.data || r.reason?.message,
+    ),
   );
 
   // Chỉ báo lỗi khi gửi thất bại tới tất cả chat.
@@ -124,8 +120,7 @@ async function sendZalo(text: string) {
 }
 
 function taskUrl(task: any) {
-  return task.url ||
-    `https://app.clickup.com/t/${task.id}`;
+  return task.url || `https://app.clickup.com/t/${task.id}`;
 }
 
 async function handleEvent(event: any) {
@@ -140,9 +135,10 @@ async function handleEvent(event: any) {
 
   // 1. Có người assign bạn vào task.
   if (event.event === "taskAssigneeUpdated") {
-    const assignedToMe = history.some((item: any) =>
-      item.field === "assignee_add" &&
-      String(item.after?.id) === String(CLICKUP_USER_ID)
+    const assignedToMe = history.some(
+      (item: any) =>
+        item.field === "assignee_add" &&
+        String(item.after?.id) === String(CLICKUP_USER_ID),
     );
 
     if (!assignedToMe) return;
@@ -151,10 +147,10 @@ async function handleEvent(event: any) {
 
     await sendZalo(
       `🔔 BẠN ĐƯỢC ASSIGN TASK\n\n` +
-      `📌 ${task.name}\n` +
-      `📊 Trạng thái: ${task.status?.status || "Chưa rõ"}\n` +
-      `⚡ Ưu tiên: ${task.priority?.priority || "Chưa đặt"}\n\n` +
-      `🔗 ${taskUrl(task)}`
+        `📌 ${task.name}\n` +
+        `📊 Trạng thái: ${task.status?.status || "Chưa rõ"}\n` +
+        `⚡ Ưu tiên: ${task.priority?.priority || "Chưa đặt"}\n\n` +
+        `🔗 ${taskUrl(task)}`,
     );
 
     return;
@@ -165,7 +161,7 @@ async function handleEvent(event: any) {
     const task = await getTask(taskId);
 
     const assignedToMe = (task.assignees || []).some(
-      (user: any) => String(user.id) === String(CLICKUP_USER_ID)
+      (user: any) => String(user.id) === String(CLICKUP_USER_ID),
     );
 
     if (!assignedToMe) return;
@@ -173,23 +169,26 @@ async function handleEvent(event: any) {
     for (const item of history) {
       if (item.field !== "comment") continue;
 
-      const comment = item.comment?.text_content ||
+      const comment =
+        item.comment?.text_content ||
         (item.comment?.comment || [])
           .map((part: any) => part.text || "")
           .join("")
           .trim();
 
       const author =
-        item.comment?.user?.username ||
-        item.user?.username ||
-        "ClickUp user";
-
+        item.comment?.user?.username || item.user?.username || "ClickUp user";
+      if (String(author) === String(CLICKUP_USER_ID)) {
+        // Bỏ qua comment do chính bạn tạo ra, không gửi thông báo.
+        console.log("Ignored comment by self");
+        continue;
+      }
       await sendZalo(
         `💬 COMMENT MỚI TRONG TASK CỦA BẠN\n\n` +
-        `📌 ${task.name}\n` +
-        `👤 Người comment: ${author}\n` +
-        `📝 Nội dung: ${comment || "(Không có nội dung văn bản)"}\n\n` +
-        `🔗 ${taskUrl(task)}`
+          `📌 ${task.name}\n` +
+          `👤 Người comment: ${author}\n` +
+          `📝 Nội dung: ${comment || "(Không có nội dung văn bản)"}\n\n` +
+          `🔗 ${taskUrl(task)}`,
       );
     }
 
@@ -200,10 +199,10 @@ async function handleEvent(event: any) {
 }
 
 if (process.env.VERCEL !== "1") {
-    const port = process.env.PORT || 3001;
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
-    });
+  const port = process.env.PORT || 3001;
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
 }
 // Quan trọng: export Express app, không gọi app.listen().
 export default app;
