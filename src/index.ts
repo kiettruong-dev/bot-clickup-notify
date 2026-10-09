@@ -10,6 +10,12 @@ const {
   ZALO_CHAT_ID,
 } = process.env;
 
+// ZALO_CHAT_ID có thể chứa nhiều ID, ngăn cách bằng dấu phẩy.
+const ZALO_CHAT_IDS = (ZALO_CHAT_ID || "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
+
 // Kiểm tra domain và route.
 app.get("/", (_req, res) => {
   res.json({ ok: true, service: "clickup-zalo-notifier" });
@@ -33,7 +39,7 @@ app.post(
         !CLICKUP_API_TOKEN ||
         !CLICKUP_USER_ID ||
         !ZALO_BOT_TOKEN ||
-        !ZALO_CHAT_ID
+        ZALO_CHAT_IDS.length === 0
       ) {
         return res.status(500).json({
           ok: false,
@@ -81,11 +87,11 @@ async function getTask(taskId: any) {
   return response.data;
 }
 
-async function sendZalo(text: any) {
+async function sendZaloTo(chatId: string, text: string) {
   const response = await axios.post(
     `https://bot-api.zaloplatforms.com/bot${ZALO_BOT_TOKEN}/sendMessage`,
     {
-      chat_id: ZALO_CHAT_ID,
+      chat_id: chatId,
       text: text.slice(0, 3500),
     },
     { timeout: 8000 }
@@ -93,8 +99,27 @@ async function sendZalo(text: any) {
 
   if (response.data?.ok === false) {
     throw new Error(
-      `Zalo rejected message: ${JSON.stringify(response.data)}`
+      `Zalo rejected message for ${chatId}: ${JSON.stringify(response.data)}`
     );
+  }
+}
+
+async function sendZalo(text: string) {
+  const results = await Promise.allSettled(
+    ZALO_CHAT_IDS.map((chatId) => sendZaloTo(chatId, text))
+  );
+
+  const failed = results.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected"
+  );
+
+  failed.forEach((r) =>
+    console.error("Zalo send error:", r.reason?.response?.data || r.reason?.message)
+  );
+
+  // Chỉ báo lỗi khi gửi thất bại tới tất cả chat.
+  if (failed.length === results.length) {
+    throw new Error("Failed to send Zalo message to all chats");
   }
 }
 
