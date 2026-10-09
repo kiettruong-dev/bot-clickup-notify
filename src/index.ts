@@ -181,7 +181,7 @@ async function handleEvent(event: any) {
       if (String(author) === String(CLICKUP_USER_ID)) {
         // Bỏ qua comment do chính bạn tạo ra, không gửi thông báo.
         console.log("Ignored comment by self");
-        continue;
+        return;
       }
       await sendZalo(
         `💬 COMMENT MỚI TRONG TASK CỦA BẠN\n\n` +
