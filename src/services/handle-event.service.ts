@@ -55,12 +55,15 @@ export const handleEvent = async (event: any) => {
           .join("")
           .trim();
 
-      const author =
-        item.comment?.user?.username || item.user?.username || "ClickUp user";
-      if (String(author) === 'dev') {
+      const authorUser = item.comment?.user || item.user;
+      const author = authorUser?.username || "ClickUp user";
+      const isSelf =
+        String(authorUser?.id) === String(CLICKUP_USER_ID) ||
+        String(author).trim().toLowerCase() === "dev";
+      if (isSelf) {
         // Bỏ qua comment do chính bạn tạo ra, không gửi thông báo.
-        console.log("Ignored comment by self");
-        return;
+        console.log("Ignored comment by self:", author, authorUser?.id);
+        continue;
       }
       await sendZalo(
         `💬 COMMENT MỚI TRONG TASK CỦA BẠN\n\n` +
