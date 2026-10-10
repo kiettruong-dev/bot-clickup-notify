@@ -1,0 +1,81 @@
+import axios from "axios";
+import { REPORT_ENV } from "../constants/index.contants.ts";
+
+export interface TaskEntry {
+    task: string;
+    project: string;
+    /** Free text such as "4h" or "25p"; empty when not provided. */
+    hours: string;
+}
+
+export class SheetTabNotFoundError extends Error {}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Apps Script sometimes answers with a Google HTML error page (cold start / overload)
+ * instead of JSON. `retries` is only safe for read-only calls.
+ */
+const callScript = async (payload: Record<string, unknown>, retries = 0): Promise<any> => {
+    const url = REPORT_ENV.APPS_SCRIPT_URL;
+    if (!url) throw new Error("Missing APPS_SCRIPT_URL");
+
+    // Apps Script answers 200 with {ok:false,...} on failure, so check the body too.
+    let data: any;
+    try {
+        ({ data } = await axios.post(
+            url,
+            { secret: REPORT_ENV.APPS_SCRIPT_SECRET, ...payload },
+            { headers: { "Content-Type": "text/plain" }, timeout: 60000 },
+        ));
+    } catch (err) {
+        // Cold starts sometimes make Google answer 404/5xx on the redirect; retry when allowed.
+        if (retries > 0 && axios.isAxiosError(err) && (!err.response || err.response.status >= 404 || err.response.status === 429)) {
+            await sleep(1000);
+            return callScript(payload, retries - 1);
+        }
+        throw err;
+    }
+    if (data?.ok) return data;
+    if (retries > 0 && typeof data === "string") {
+        await sleep(1000);
+        return callScript(payload, retries - 1);
+    }
+    if (data?.error === "tab_not_found") throw new SheetTabNotFoundError(String(payload.tabId));
+    const raw = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Apps Script error: ${data?.error ?? `unknown response: ${String(raw).slice(0, 300)}`}`);
+};
+
+export interface Tab {
+    /** Stable sheet id (gid); does not change when the tab is renamed. */
+    id: number;
+    name: string;
+}
+
+/** All tabs in the spreadsheet. */
+export const listTabs = async (): Promise<Tab[]> => {
+    const { tabs } = await callScript({ action: "tabs" }, 2);
+    if (!Array.isArray(tabs) || tabs.some((t) => typeof t?.name !== "string" || typeof t?.id !== "number")) {
+        throw new Error("Apps Script returned tabs in an old format: redeploy Code.gs as a new version");
+    }
+    return tabs;
+};
+
+export interface AccountEntry {
+    project: string;
+    username: string;
+    password: string;
+    url: string;
+}
+
+/** Rows of the "Accounts" tab whose project/domain column contains `query` (like SQL LIKE '%query%'). */
+export const searchAccounts = async (query: string): Promise<AccountEntry[]> => {
+    const { rows } = await callScript({ action: "search_accounts", query }, 2);
+    if (!Array.isArray(rows)) throw new Error("Apps Script returned no rows: redeploy Code.gs as a new version");
+    return rows;
+};
+
+/** Append tasks to the existing tab with id `tabId`. `date` is yyyy-mm-dd. */
+export const appendTasks = async (tabId: number, date: string, tasks: TaskEntry[]): Promise<void> => {
+    await callScript({ tabId, date, tasks });
+};

@@ -3,13 +3,17 @@ import { ENV_CONFIG } from "../constants/index.contants.ts";
 
 const { ZALO_BOT_TOKEN, ZALO_CHAT_IDS } = ENV_CONFIG;
 
-export const sendZaloTo = async (chatId: string, text: string) => {
+export const sendZaloTo = async (
+  chatId: string,
+  text: string,
+  { markdown = false }: { markdown?: boolean } = {},
+) => {
   const response = await axios.post(
     `https://bot-api.zaloplatforms.com/bot${ZALO_BOT_TOKEN}/sendMessage`,
     {
       chat_id: chatId,
       text: text.slice(0, 3500),
-      parse_mode: "markdown",
+      ...(markdown && { parse_mode: "markdown" }),
     },
     { timeout: 8000 },
   );
@@ -23,7 +27,7 @@ export const sendZaloTo = async (chatId: string, text: string) => {
 
 export const sendZalo = async (text: string) => {
   const results = await Promise.allSettled(
-    ZALO_CHAT_IDS.map((chatId) => sendZaloTo(chatId, text)),
+    ZALO_CHAT_IDS.map((chatId) => sendZaloTo(chatId, text, { markdown: true })),
   );
 
   const failed = results.filter(

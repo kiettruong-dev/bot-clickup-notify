@@ -1,5 +1,6 @@
 import express from "express";
 import { handleWebhook } from "./controllers/webhook.controller.ts";
+import { handleZaloWebhook } from "./controllers/zalo-webhook.controller.ts";
 
 const app = express();
 
@@ -20,6 +21,8 @@ app.post(
   express.raw({ type: "application/json" }),
   handleWebhook,
 );
+
+app.post("/api/webhook/zalo", express.json(), handleZaloWebhook);
 
 if (process.env.VERCEL !== "1") {
   const port = process.env.PORT || 3001;
