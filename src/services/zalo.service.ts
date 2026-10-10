@@ -9,6 +9,7 @@ export const sendZaloTo = async (chatId: string, text: string) => {
     {
       chat_id: chatId,
       text: text.slice(0, 3500),
+      parse_mode: "markdown",
     },
     { timeout: 8000 },
   );

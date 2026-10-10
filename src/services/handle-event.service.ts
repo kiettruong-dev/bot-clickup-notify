@@ -25,11 +25,11 @@ export const handleEvent = async (event: any) => {
     const task = await getTask(taskId);
 
     await sendZalo(
-      `🔔 BẠN ĐƯỢC ASSIGN TASK\n\n` +
-        `📌 ${task.name}\n` +
-        `📊 Trạng thái: ${task.status?.status || "Chưa rõ"}\n` +
-        `⚡ Ưu tiên: ${task.priority?.priority || "Chưa đặt"}\n\n` +
-        `🔗 ${taskUrl(task)}`,
+      `**BẠN ĐƯỢC ASSIGN TASK**\n\n` +
+        `**Task**: ${task.name}\n` +
+        `**Trạng thái**: ${task.status?.status || "Chưa rõ"}\n` +
+        `**Ưu tiên**: ${task.priority?.priority || "Chưa đặt"}\n` +
+        `**Link**: ${taskUrl(task)}`,
     );
 
     return;
@@ -56,6 +56,7 @@ export const handleEvent = async (event: any) => {
           .trim();
 
       const authorUser = item.comment?.user || item.user;
+      console.log('authorUser', authorUser);
       const author = authorUser?.username || "ClickUp user";
       const isSelf =
         String(authorUser?.id) === String(CLICKUP_USER_ID) ||
@@ -66,11 +67,11 @@ export const handleEvent = async (event: any) => {
         continue;
       }
       await sendZalo(
-        `💬 COMMENT MỚI TRONG TASK CỦA BẠN\n\n` +
-          `📌 ${task.name}\n` +
-          `👤 Người comment: ${author}\n` +
-          `📝 Nội dung: ${comment || "(Không có nội dung văn bản)"}\n\n` +
-          `🔗 ${taskUrl(task)}`,
+        `**COMMENT MỚI TRONG TASK CỦA BẠN**\n\n` +
+          `**Task**: ${task.name}\n` +
+          `**Người comment**: ${author}\n` +
+          `**Nội dung**: ${comment || "(Không có nội dung văn bản)"}\n` +
+          `**Link**: ${taskUrl(task)}`,
       );
     }
 
