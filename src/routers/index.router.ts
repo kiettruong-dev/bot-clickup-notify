@@ -1,6 +1,5 @@
 import express from "express";
-import { handleWebhook } from "../controllers/webhook.controller.ts";
-import { handleZaloWebhook } from "../controllers/zalo-webhook.controller.ts";
+import { handleClickUpWebhook, handleZaloWebhook } from "../controllers/webhook.controller.ts";
 
 const router = express.Router();
 
@@ -15,7 +14,7 @@ router.get("/webhooks/clickup", (_req, res) => {
 router.post(
   "/webhooks/clickup",
   express.raw({ type: "application/json" }),
-  handleWebhook,
+  handleClickUpWebhook,
 );
 
 router.post("/webhook/zalo", express.json(), handleZaloWebhook);

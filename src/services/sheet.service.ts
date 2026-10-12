@@ -1,5 +1,5 @@
 import axios from "axios";
-import { REPORT_ENV } from "../constants/index.contants.ts";
+import { ENV_CONFIG } from "../constants/index.contants.ts";
 
 export interface TaskEntry {
     task: string;
@@ -17,7 +17,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * instead of JSON. `retries` is only safe for read-only calls.
  */
 const callScript = async (payload: Record<string, unknown>, retries = 0): Promise<any> => {
-    const url = REPORT_ENV.APPS_SCRIPT_URL;
+    const url = ENV_CONFIG.APPS_SCRIPT_URL;
     if (!url) throw new Error("Missing APPS_SCRIPT_URL");
 
     // Apps Script answers 200 with {ok:false,...} on failure, so check the body too.
@@ -25,7 +25,7 @@ const callScript = async (payload: Record<string, unknown>, retries = 0): Promis
     try {
         ({ data } = await axios.post(
             url,
-            { secret: REPORT_ENV.APPS_SCRIPT_SECRET, ...payload },
+            { secret: ENV_CONFIG.APPS_SCRIPT_SECRET, ...payload },
             { headers: { "Content-Type": "text/plain" }, timeout: 60000 },
         ));
     } catch (err) {

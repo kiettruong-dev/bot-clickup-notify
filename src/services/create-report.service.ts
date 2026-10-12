@@ -1,6 +1,6 @@
 import { ACCOUNT_COMMAND_RE, handleAccountSearch } from "./account.service.ts";
 import { appendTasks, listTabs, SheetTabNotFoundError, Tab, TaskEntry } from "./sheet.service.ts";
-import { getTab, normalizeName } from "./user-map.service.ts";
+import { getTab, normalizeName } from "../utils/helper.util.ts";
 import { sendZaloTo } from "./zalo.service.ts";
 
 export interface IncomingMessage {
