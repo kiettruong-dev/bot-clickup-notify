@@ -2,6 +2,18 @@ import {ENV_CONFIG} from '../constants/index.contants.ts';
 import { getTask, taskUrl } from './clickup.service.ts';
 import { sendZalo } from './zalo.service.ts';
 const { CLICKUP_USER_ID } = ENV_CONFIG;
+
+// ClickUp retries the webhook when the response is slow, which would send the same notification twice.
+const DEDUP_TTL_MS = 10 * 60 * 1000;
+const seen = new Map<string, number>();
+const alreadySeen = (key: string) => {
+  const now = Date.now();
+  for (const [k, t] of seen) if (now - t > DEDUP_TTL_MS) seen.delete(k);
+  if (seen.has(key)) return true;
+  seen.set(key, now);
+  return false;
+};
+
 export const handleEvent = async (event: any) => {
   const taskId = event.task_id;
 
@@ -47,6 +59,12 @@ export const handleEvent = async (event: any) => {
 
     for (const item of history) {
       if (item.field !== "comment") continue;
+
+      const dedupKey = `comment:${item.comment?.id ?? item.id ?? `${taskId}:${item.date}`}`;
+      if (alreadySeen(dedupKey)) {
+        console.log("Ignored duplicate comment event:", dedupKey);
+        continue;
+      }
 
       const comment =
         item.comment?.text_content ||
